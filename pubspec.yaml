@@ -10,10 +10,13 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_google_places: ^0.3.0
+  flutter_polyline_points: ^1.0.0
+  geolocator: ^11.0.0
   google_fonts: 4.0.4
   google_map_polyline_new: ^0.3.0+2
   google_maps_flutter: ^2.5.3
   google_maps_webservice: ^0.0.20-nullsafety.5
+  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:

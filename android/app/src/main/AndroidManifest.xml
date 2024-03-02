@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
     <application
         android:label="exscort"
         android:name="${applicationName}"
@@ -21,7 +24,7 @@
               android:resource="@style/NormalTheme"
               />
               <meta-data android:name="com.google.android.geo.API_KEY"
-               android:value="AIzaSyCWlJR5t_fv_HGJV5zF7nxKVQrGB3cFVl4"/>
+               android:value="AIzaSyBTiF2fh1EfEbZh9VNK07KtaGV7NNQtnQs"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -32,5 +35,8 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+            <meta-data android:name="com.google.android.geo.API_KEY"
+               android:value="AIzaSyBTiF2fh1EfEbZh9VNK07KtaGV7NNQtnQs"/>
+        
     </application>
 </manifest>

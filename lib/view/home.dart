@@ -1,221 +1,101 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_google_places/flutter_google_places.dart';
-import 'package:google_map_polyline_new/google_map_polyline_new.dart';
+import 'dart:async';
+
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:google_maps_webservice/places.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
+
+import 'dart:developer';
 
 class Home extends StatefulWidget {
-    const Home({super.key});
+  const Home({Key? key});
 
   @override
-  _HomeState createState() => _HomeState();
+  State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
-  late GoogleMapController mapController;
-  TextEditingController departureController = new TextEditingController();
-  TextEditingController arrivalController = new TextEditingController();
-  List<Marker> markersList = [];
-  final String key = "AIzaSyCWlJR5t_fv_HGJV5zF7nxKVQrGB3cFVl4";
-  LatLng _center =
-      LatLng(45.4654219, 9.1859243); //milan coordinates -- default location
-  GoogleMapsPlaces _places = GoogleMapsPlaces(apiKey: "AIzaSyCWlJR5t_fv_HGJV5zF7nxKVQrGB3cFVl4");
-  GoogleMapPolyline googleMapPolyline =
-      new GoogleMapPolyline(apiKey: "AIzaSyCWlJR5t_fv_HGJV5zF7nxKVQrGB3cFVl4");
-  final List<Polyline> polyline = [];
-  List<LatLng> routeCoords = [];
+  final Completer<GoogleMapController> _controller = Completer();
+  Position? currentPosition;
+  List<LatLng> polylineCoordinates = [];
 
-  late PlaceDetails departure;
-  late PlaceDetails arrival;
+  static const LatLng sourceLocation = LatLng(10.29733339, 123.9070278);
 
-  void onMapCreated(controller) {
-    setState(() {
-      mapController = controller;
-    });
+  @override
+  void initState() {
+    super.initState();
+    getPolyPoints();
+    _requestPermissionAndGetCurrentLocation();
   }
 
-  Future<Null> displayPredictionDeparture(Prediction p) async {
-    if (p != null) {
-      // get detail (lat/lng)
-      PlacesDetailsResponse detail =
-          await _places.getDetailsByPlaceId(p.placeId!);
-      final lat = detail.result.geometry?.location.lat;
-      final lng = detail.result.geometry?.location.lng;
-
-      setState(() {
-        departure = detail.result;
-        departureController.text = detail.result.name;
-        Marker marker = Marker(
-            markerId: MarkerId('arrivalMarker'),
-            draggable: false,
-            infoWindow: InfoWindow(
-              title: "This is where you will arrive",
-            ),
-            onTap: () {
-              //print('this is where you will arrive');
-            },
-            position: LatLng(lat!, lng!));
-        markersList.add(marker);
-      });
-
-      mapController.animateCamera(CameraUpdate.newCameraPosition(
-          CameraPosition(target: LatLng(lat!, lng!), zoom: 10.0)));
+  _requestPermissionAndGetCurrentLocation() async {
+    var permissionStatus = await Permission.location.request();
+    if (permissionStatus.isGranted) {
+      _getCurrentLocation();
+    } else {
+      // Handle the case if permission is not granted
     }
   }
 
-  Future<Null> displayPredictionArrival(Prediction p) async {
-    if (p != null) {
-      // get detail (lat/lng)
-      PlacesDetailsResponse detail =
-          await _places.getDetailsByPlaceId(p.placeId!);
-      final lat = detail.result.geometry?.location.lat;
-      final lng = detail.result.geometry?.location.lng;
+  _getCurrentLocation() async {
+    final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high);
+    setState(() {
+      currentPosition = position;
+    });
+  }
 
-      setState(() {
-        arrival = detail.result;
-        arrivalController.text = detail.result.name;
-        Marker marker = Marker(
-            markerId: MarkerId('arrivalMarker'),
-            draggable: false,
-            infoWindow: InfoWindow(
-              title: "This is where you will arrive",
-            ),
-            onTap: () {
-              //print('this is where you will arrive');
-            },
-            position: LatLng(lat!, lng!));
-        markersList.add(marker);
-      });
+  void getPolyPoints() async {
+    PolylinePoints polylinePoints = PolylinePoints();
 
-      mapController.animateCamera(CameraUpdate.newCameraPosition(
-          CameraPosition(target: LatLng(lat!, lng!), zoom: 10.0)));
+    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+        "AIzaSyBTiF2fh1EfEbZh9VNK07KtaGV7NNQtnQs",
+        PointLatLng(sourceLocation.latitude, sourceLocation.longitude),
+        PointLatLng(currentPosition!.latitude, currentPosition!.longitude));
 
-      computePath();
+    if (result.points.isNotEmpty) {
+      for (var point in result.points) {
+        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      }
+      setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Demo"),
-      ),
-      body: Stack(
-        children: <Widget>[
-          GoogleMap(
-            onMapCreated: onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: _center,
-              zoom: 11.0,
-            ),
-            markers: Set.from(markersList),
-            polylines: Set.from(polyline),
-          ),
-          Positioned(
-              top: 10.0,
-              right: 15.0,
-              left: 15.0,
-              child: Column(
-                children: <Widget>[
-                  Container(
-                      height: 50.0,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10.0),
-                          color: Colors.white),
-                      child: Column(
-                        children: <Widget>[
-                          TextField(
-                            decoration: InputDecoration(
-                                hintText: 'Enter the departure place?',
-                                border: InputBorder.none,
-                                contentPadding:
-                                    EdgeInsets.only(left: 15.0, top: 15.0),
-                                suffixIcon: IconButton(
-                                  icon: Icon(Icons.search),
-                                  iconSize: 30.0,
-                                  onPressed: () {},
-                                )),
-                            controller: departureController,
-                            onTap: () async {
-                              Prediction? p = await PlacesAutocomplete.show(
-                                  context: context,
-                                  apiKey: key,
-                                  mode: Mode.overlay,
-                                  language: "en",
-                                  components: [
-                                    new Component(Component.country, "en")
-                                  ]);
-                              displayPredictionDeparture(p!);
-                            },
-                            //onEditingComplete: searchAndNavigate,
-                          ),
-                        ],
-                      )),
-                  SizedBox(
-                    height: 10,
-                  ),
-                  Container(
-                      height: 50.0,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10.0),
-                          color: Colors.white),
-                      child: Column(
-                        children: <Widget>[
-                          TextField(
-                            decoration: InputDecoration(
-                                hintText: 'Enter the arrival place?',
-                                border: InputBorder.none,
-                                contentPadding:
-                                    EdgeInsets.only(left: 15.0, top: 15.0),
-                                suffixIcon: IconButton(
-                                  icon: Icon(Icons.search),
-                                  iconSize: 30.0,
-                                  onPressed: () {},
-                                )),
-                            controller: arrivalController,
-                            onTap: () async {
-                              Prediction? p = await PlacesAutocomplete.show(
-                                  context: context,
-                                  apiKey: key,
-                                  mode: Mode.overlay,
-                                  language: "en",
-                                  components: [
-                                    new Component(Component.country, "en")
-                                  ]);
-                              displayPredictionArrival(p!);
-                            },
-                            //onEditingComplete: searchAndNavigate,
-                          ),
-                        ],
-                      )),
-                ],
-              )),
-        ],
-      ),
+      body: currentPosition != null
+          ? GoogleMap(
+              zoomControlsEnabled: false,
+              mapType: MapType.satellite,
+              initialCameraPosition: CameraPosition(
+                target: LatLng(
+                    currentPosition!.latitude, currentPosition!.longitude),
+                zoom: 10,
+              ),
+              polylines: {
+                Polyline(
+                    polylineId: PolylineId("route"),
+                    points: polylineCoordinates,
+                    color: Colors.blueAccent,
+                    width: 7)
+              },
+              markers: {
+                Marker(
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                        BitmapDescriptor.hueGreen),
+                    markerId: MarkerId("source"),
+                    position: sourceLocation),
+                Marker(
+                    markerId: MarkerId("currentLocation"),
+                    icon: BitmapDescriptor.defaultMarkerWithHue(
+                        BitmapDescriptor.hueRed),
+                    position: LatLng(
+                        currentPosition!.latitude, currentPosition!.longitude))
+              },
+            )
+          : Center(child: CircularProgressIndicator()),
     );
-  }
-
-  computePath() async {
-    LatLng origin = new LatLng(
-        departure.geometry!.location.lat, departure.geometry!.location.lng);
-    LatLng end = new LatLng(
-        arrival.geometry!.location.lat, arrival.geometry!.location.lng);
-    routeCoords.addAll((await googleMapPolyline.getCoordinatesWithLocation(
-        origin: origin,
-        destination: end,
-        mode: RouteMode.driving)) as Iterable<LatLng>);
-
-    setState(() {
-      polyline.add(Polyline(
-          polylineId: PolylineId('iter'),
-          visible: true,
-          points: routeCoords,
-          width: 4,
-          color: Colors.blue,
-          startCap: Cap.roundCap,
-          endCap: Cap.buttCap));
-    });
   }
 }
