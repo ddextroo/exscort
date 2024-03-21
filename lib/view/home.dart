@@ -1,78 +1,70 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 
-import 'dart:developer';
-
 class Home extends StatefulWidget {
-  const Home({Key? key});
+ const Home({Key? key}) : super(key: key);
 
-  @override
-  State<Home> createState() => _HomeState();
+ @override
+ State<Home> createState() => _HomeState();
 }
 
 class _HomeState extends State<Home> {
-  final Completer<GoogleMapController> _controller = Completer();
-  Position? currentPosition;
-  List<LatLng> polylineCoordinates = [];
+ Position? currentPosition;
+ List<LatLng> polylineCoordinates = [];
 
-  static const LatLng sourceLocation = LatLng(10.29733339, 123.9070278);
+ static const LatLng sourceLocation = LatLng(10.29733339, 123.9070278);
 
-  @override
-  void initState() {
+ @override
+ void initState() {
     super.initState();
-    getPolyPoints();
     _requestPermissionAndGetCurrentLocation();
-  }
+ }
 
-  _requestPermissionAndGetCurrentLocation() async {
+ _requestPermissionAndGetCurrentLocation() async {
     var permissionStatus = await Permission.location.request();
     if (permissionStatus.isGranted) {
       _getCurrentLocation();
-    } else {
-      // Handle the case if permission is not granted
     }
-  }
+ }
 
-  _getCurrentLocation() async {
+ _getCurrentLocation() async {
     final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
     setState(() {
       currentPosition = position;
+      getPolyPoints();
     });
-  }
+ }
 
-  void getPolyPoints() async {
-    PolylinePoints polylinePoints = PolylinePoints();
+ void getPolyPoints() async {
+    if (currentPosition != null) {
+      PolylinePoints polylinePoints = PolylinePoints();
+      PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
+          "AIzaSyC5EK2yWGZ7Z4dOgbyAsGWPLtwVDMCIj88",
+          PointLatLng(sourceLocation.latitude, sourceLocation.longitude),
+          PointLatLng(currentPosition!.latitude, currentPosition!.longitude));
 
-    PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-        "AIzaSyBTiF2fh1EfEbZh9VNK07KtaGV7NNQtnQs",
-        PointLatLng(sourceLocation.latitude, sourceLocation.longitude),
-        PointLatLng(currentPosition!.latitude, currentPosition!.longitude));
-
-    if (result.points.isNotEmpty) {
-      for (var point in result.points) {
-        polylineCoordinates.add(LatLng(point.latitude, point.longitude));
+      if (result.points.isNotEmpty) {
+        setState(() {
+          polylineCoordinates = result.points.map((point) => LatLng(point.latitude, point.longitude)).toList();
+        });
       }
-      setState(() {});
     }
-  }
+ }
 
-  @override
-  Widget build(BuildContext context) {
+ @override
+ Widget build(BuildContext context) {
     return Scaffold(
       body: currentPosition != null
           ? GoogleMap(
-              zoomControlsEnabled: false,
+              zoomControlsEnabled: true,
               mapType: MapType.satellite,
               initialCameraPosition: CameraPosition(
-                target: LatLng(
-                    currentPosition!.latitude, currentPosition!.longitude),
-                zoom: 10,
+                target: LatLng(currentPosition!.latitude, currentPosition!.longitude),
+                zoom: 20,
               ),
               polylines: {
                 Polyline(
@@ -91,12 +83,10 @@ class _HomeState extends State<Home> {
                     markerId: MarkerId("currentLocation"),
                     icon: BitmapDescriptor.defaultMarkerWithHue(
                         BitmapDescriptor.hueRed),
-                    position: LatLng(
-                        currentPosition!.latitude, currentPosition!.longitude))
+                    position: LatLng(currentPosition!.latitude, currentPosition!.longitude)),
               },
             )
           : Center(child: CircularProgressIndicator()),
     );
-  }
+ }
 }
-//testt
